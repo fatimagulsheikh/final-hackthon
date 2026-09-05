@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import "./AgentDashboard.css";
 
 function AgentDashboard() {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ function AgentDashboard() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -21,7 +23,6 @@ function AgentDashboard() {
       setError("");
 
       const response = await api.get("/tickets/agent");
-
       setTickets(response.data.tickets || []);
     } catch (error) {
       setError(
@@ -36,7 +37,6 @@ function AgentDashboard() {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
     navigate("/login");
   };
 
@@ -58,430 +58,294 @@ function AgentDashboard() {
     (ticket) => ticket.status === "Resolved"
   ).length;
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#f5f7fb",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      {/* Navbar */}
-      <nav
-        style={{
-          backgroundColor: "#ffffff",
-          padding: "18px 40px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-        }}
-      >
-        <div>
-          <h2
-            style={{
-              margin: 0,
-              color: "#2563eb",
-            }}
-          >
-            SupportFlow
-          </h2>
+  const filteredTickets = tickets.filter((ticket) => {
+    const text = `
+      ${ticket.ticketNumber}
+      ${ticket.subject}
+      ${ticket.customer?.name || ""}
+      ${ticket.category}
+      ${ticket.status}
+    `.toLowerCase();
 
-          <small style={{ color: "#64748b" }}>
-            Agent Support Desk
-          </small>
+    return text.includes(search.toLowerCase());
+  });
+
+  const getStatusClass = (status) => {
+    if (status === "New") return "status-new";
+    if (status === "Assigned") return "status-assigned";
+    if (status === "In Progress") return "status-progress";
+    if (status === "Resolved") return "status-resolved";
+
+    return "";
+  };
+
+  return (
+    <div className="agent-page">
+
+      {/* NAVBAR */}
+      <nav className="agent-navbar">
+        <div className="brand-area">
+          <div className="brand-icon">S</div>
+
+          <div>
+            <h2>SupportFlow</h2>
+            <span>Agent Support Desk</span>
+          </div>
         </div>
 
-        <button
-          onClick={logout}
-          style={{
-            backgroundColor: "#ef4444",
-            color: "white",
-            border: "none",
-            padding: "10px 18px",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Logout
-        </button>
+        <div className="nav-right">
+          <div className="agent-profile">
+            <div className="profile-avatar">
+              {(user?.name || "A")
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+
+            <div className="profile-info">
+              <strong>{user?.name || "Support Agent"}</strong>
+              <span>Support Agent</span>
+            </div>
+          </div>
+
+          <button
+            className="logout-btn"
+            onClick={logout}
+          >
+            Logout
+          </button>
+        </div>
       </nav>
 
-      {/* Main */}
-      <main
-        style={{
-          maxWidth: "1150px",
-          margin: "0 auto",
-          padding: "40px 20px",
-        }}
-      >
-        {/* Welcome */}
-        <section
-          style={{
-            backgroundColor: "#2563eb",
-            color: "white",
-            padding: "35px",
-            borderRadius: "16px",
-            marginBottom: "30px",
-          }}
-        >
-          <h1 style={{ marginTop: 0 }}>
-            Agent Dashboard 👋
-          </h1>
+      {/* MAIN */}
+      <main className="agent-container">
 
-          <p
-            style={{
-              marginBottom: 0,
-              opacity: 0.9,
-            }}
-          >
-            Welcome, {user?.name || "Support Agent"}.
-            Manage customer tickets and provide support.
-          </p>
-        </section>
+        {/* HERO */}
+        <section className="agent-hero">
+          <div>
+            <span className="hero-label">
+              SUPPORT CENTER
+            </span>
 
-        {/* Statistics */}
-        <h2 style={{ color: "#1e293b" }}>
-          Ticket Statistics
-        </h2>
+            <h1>
+              Agent Dashboard 👋
+            </h1>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "20px",
-            marginBottom: "35px",
-          }}
-        >
-          {/* Total */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "24px",
-              borderRadius: "14px",
-              boxShadow:
-                "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Total Tickets
+            <p>
+              Welcome back,{" "}
+              <strong>
+                {user?.name || "Support Agent"}
+              </strong>
+              . Manage customer requests and provide
+              excellent support.
             </p>
-
-            <h2 style={{ marginBottom: 0 }}>
-              {totalTickets}
-            </h2>
           </div>
 
-          {/* New */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "24px",
-              borderRadius: "14px",
-              boxShadow:
-                "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              New
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#f59e0b",
-              }}
-            >
-              {newTickets}
-            </h2>
-          </div>
-
-          {/* Assigned */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "24px",
-              borderRadius: "14px",
-              boxShadow:
-                "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Assigned
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#7c3aed",
-              }}
-            >
-              {assignedTickets}
-            </h2>
-          </div>
-
-          {/* In Progress */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "24px",
-              borderRadius: "14px",
-              boxShadow:
-                "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              In Progress
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#2563eb",
-              }}
-            >
-              {inProgressTickets}
-            </h2>
-          </div>
-
-          {/* Resolved */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "24px",
-              borderRadius: "14px",
-              boxShadow:
-                "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Resolved
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#16a34a",
-              }}
-            >
-              {resolvedTickets}
-            </h2>
+          <div className="hero-icon">
+            🎧
           </div>
         </section>
 
-        {/* Tickets */}
-        <section>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "15px",
-            }}
-          >
-            <h2 style={{ color: "#1e293b" }}>
-              Customer Tickets
-            </h2>
+        {/* STATISTICS */}
+        <div className="section-heading">
+          <div>
+            <h2>Overview</h2>
+            <p>Monitor your support activity</p>
+          </div>
+        </div>
+
+        <section className="stats-grid">
+
+          <div className="stat-card total-card">
+            <div className="stat-icon">📊</div>
+            <div>
+              <span>Total Tickets</span>
+              <h3>{totalTickets}</h3>
+            </div>
+          </div>
+
+          <div className="stat-card new-card">
+            <div className="stat-icon">🆕</div>
+            <div>
+              <span>New</span>
+              <h3>{newTickets}</h3>
+            </div>
+          </div>
+
+          <div className="stat-card assigned-card">
+            <div className="stat-icon">👤</div>
+            <div>
+              <span>Assigned</span>
+              <h3>{assignedTickets}</h3>
+            </div>
+          </div>
+
+          <div className="stat-card progress-card">
+            <div className="stat-icon">⚡</div>
+            <div>
+              <span>In Progress</span>
+              <h3>{inProgressTickets}</h3>
+            </div>
+          </div>
+
+          <div className="stat-card resolved-card">
+            <div className="stat-icon">✓</div>
+            <div>
+              <span>Resolved</span>
+              <h3>{resolvedTickets}</h3>
+            </div>
+          </div>
+
+        </section>
+
+        {/* TICKETS HEADER */}
+        <section className="tickets-section">
+
+          <div className="tickets-header">
+
+            <div>
+              <h2>Customer Tickets</h2>
+              <p>
+                Manage and respond to customer support requests
+              </p>
+            </div>
 
             <button
+              className="refresh-btn"
               onClick={fetchTickets}
-              style={{
-                backgroundColor: "#ffffff",
-                color: "#2563eb",
-                border: "1px solid #2563eb",
-                padding: "9px 15px",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
             >
-              Refresh
+              ↻ Refresh
             </button>
+
           </div>
 
-          {loading && <p>Loading tickets...</p>}
+          {/* SEARCH */}
+          <div className="search-wrapper">
+            <span>🔍</span>
+
+            <input
+              type="text"
+              placeholder="Search by ticket number, subject, customer..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
+          </div>
+
+          {loading && (
+            <div className="loading-box">
+              <div className="loader"></div>
+              <p>Loading customer tickets...</p>
+            </div>
+          )}
 
           {error && (
-            <div
-              style={{
-                backgroundColor: "#fee2e2",
-                color: "#b91c1c",
-                padding: "15px",
-                borderRadius: "10px",
-                marginBottom: "20px",
-              }}
-            >
-              {error}
+            <div className="error-box">
+              ⚠️ {error}
             </div>
           )}
 
           {!loading &&
             !error &&
-            tickets.length === 0 && (
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "35px",
-                  borderRadius: "14px",
-                  textAlign: "center",
-                }}
-              >
+            filteredTickets.length === 0 && (
+              <div className="empty-box">
+                <div className="empty-icon">🎫</div>
+
                 <h3>No tickets found</h3>
 
-                <p style={{ color: "#64748b" }}>
-                  There are currently no customer tickets.
+                <p>
+                  No customer tickets match your search.
                 </p>
               </div>
             )}
 
-          {!loading && tickets.length > 0 && (
-            <div
-              style={{
-                display: "grid",
-                gap: "16px",
-              }}
-            >
-              {tickets.map((ticket) => (
-                <div
-                  key={ticket._id}
-                  style={{
-                    backgroundColor: "white",
-                    padding: "22px",
-                    borderRadius: "14px",
-                    boxShadow:
-                      "0 3px 12px rgba(0,0,0,0.06)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent:
-                        "space-between",
-                      alignItems: "flex-start",
-                      gap: "20px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <p
-                        style={{
-                          color: "#2563eb",
-                          fontWeight: "bold",
-                          margin: "0 0 8px",
-                        }}
-                      >
-                        {ticket.ticketNumber}
-                      </p>
+          {/* TICKET LIST */}
+          {!loading &&
+            !error &&
+            filteredTickets.length > 0 && (
+              <div className="ticket-list">
 
-                      <h3
-                        style={{
-                          margin: "0 0 10px",
-                          color: "#1e293b",
-                        }}
-                      >
+                {filteredTickets.map((ticket) => (
+
+                  <article
+                    className="ticket-card"
+                    key={ticket._id}
+                  >
+
+                    <div className="ticket-main">
+
+                      <div className="ticket-number">
+                        {ticket.ticketNumber}
+                      </div>
+
+                      <h3>
                         {ticket.subject}
                       </h3>
 
-                      <p
-                        style={{
-                          margin: "6px 0",
-                          color: "#64748b",
-                        }}
-                      >
-                        <strong>Customer:</strong>{" "}
-                        {ticket.customer?.name ||
-                          "Unknown"}
-                      </p>
+                      <div className="ticket-details">
 
-                      <p
-                        style={{
-                          margin: "6px 0",
-                          color: "#64748b",
-                        }}
-                      >
-                        <strong>Category:</strong>{" "}
-                        {ticket.category}
-                      </p>
+                        <div>
+                          <span>Customer</span>
+                          <strong>
+                            {ticket.customer?.name ||
+                              "Unknown"}
+                          </strong>
+                        </div>
 
-                      <p
-                        style={{
-                          margin: "6px 0",
-                          color: "#64748b",
-                        }}
-                      >
-                        <strong>Priority:</strong>{" "}
-                        {ticket.priority}
-                      </p>
+                        <div>
+                          <span>Category</span>
+                          <strong>
+                            {ticket.category}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Priority</span>
+                          <strong>
+                            <span className="priority-dot">
+                              ●
+                            </span>{" "}
+                            {ticket.priority}
+                          </strong>
+                        </div>
+
+                      </div>
+
                     </div>
 
-                    <div
-                      style={{
-                        textAlign: "right",
-                      }}
-                    >
+                    <div className="ticket-side">
+
                       <span
-                        style={{
-                          display: "inline-block",
-                          padding: "7px 12px",
-                          borderRadius: "20px",
-                          fontSize: "13px",
-                          fontWeight: "bold",
-                          backgroundColor:
-                            ticket.status ===
-                            "Resolved"
-                              ? "#dcfce7"
-                              : ticket.status ===
-                                "New"
-                              ? "#fef3c7"
-                              : ticket.status ===
-                                "Assigned"
-                              ? "#ede9fe"
-                              : "#dbeafe",
-                          color:
-                            ticket.status ===
-                            "Resolved"
-                              ? "#15803d"
-                              : ticket.status ===
-                                "New"
-                              ? "#b45309"
-                              : ticket.status ===
-                                "Assigned"
-                              ? "#6d28d9"
-                              : "#1d4ed8",
-                        }}
+                        className={`status-badge ${getStatusClass(
+                          ticket.status
+                        )}`}
                       >
                         {ticket.status}
                       </span>
 
-                      <br />
-
                       <button
+                        className="open-ticket-btn"
                         onClick={() =>
                           navigate(
                             `/agent/ticket/${ticket._id}`
                           )
                         }
-                        style={{
-                          marginTop: "15px",
-                          backgroundColor: "#2563eb",
-                          color: "white",
-                          border: "none",
-                          padding: "10px 18px",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          fontWeight: "bold",
-                        }}
                       >
                         Open Ticket
+                        <span>→</span>
                       </button>
+
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+
+                  </article>
+
+                ))}
+
+              </div>
+            )}
+
         </section>
+
       </main>
     </div>
   );

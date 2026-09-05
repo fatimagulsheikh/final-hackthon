@@ -1,8 +1,8 @@
-import socket from "../socket";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import socket from "../socket";
 import api from "../api";
-
+import "./TicketDetails.css";
 
 function TicketDetails() {
   const { id } = useParams();
@@ -25,60 +25,37 @@ function TicketDetails() {
     if (!id) return;
 
     socket.connect();
-
     socket.emit("join-ticket", id);
 
-    // ===============================
-    // NEW MESSAGE REAL-TIME
-    // ===============================
     const handleNewMessage = (newMessage) => {
-      setMessages((previousMessages) => {
-        // Duplicate message prevent karna
-        const alreadyExists = previousMessages.some(
+      setMessages((prev) => {
+        const exists = prev.some(
           (item) => item._id === newMessage._id
         );
 
-        if (alreadyExists) {
-          return previousMessages;
-        }
+        if (exists) return prev;
 
-        return [...previousMessages, newMessage];
+        return [...prev, newMessage];
       });
     };
 
-    // ===============================
-    // TICKET STATUS REAL-TIME
-    // ===============================
     const handleStatusUpdate = (data) => {
       if (data.ticketId === id) {
-        setTicket((previousTicket) => ({
-          ...previousTicket,
+        setTicket((prev) => ({
+          ...prev,
           status: data.status,
           resolutionNote:
-            data.resolutionNote ||
-            previousTicket.resolutionNote,
+            data.resolutionNote || prev.resolutionNote,
         }));
       }
     };
 
     socket.on("new-message", handleNewMessage);
+    socket.on("ticket-status-updated", handleStatusUpdate);
 
-    socket.on(
-      "ticket-status-updated",
-      handleStatusUpdate
-    );
-
-    // ===============================
-    // CLEANUP
-    // ===============================
     return () => {
       socket.off("new-message", handleNewMessage);
-
-      socket.off(
-        "ticket-status-updated",
-        handleStatusUpdate
-      );
-
+      socket.off("ticket-status-updated", handleStatusUpdate);
       socket.disconnect();
     };
   }, [id]);
@@ -86,7 +63,6 @@ function TicketDetails() {
   const fetchTicket = async () => {
     try {
       const response = await api.get(`/tickets/${id}`);
-
       setTicket(response.data.ticket);
     } catch (error) {
       setError(
@@ -101,7 +77,6 @@ function TicketDetails() {
   const fetchMessages = async () => {
     try {
       const response = await api.get(`/messages/${id}`);
-
       setMessages(response.data.messages || []);
     } catch (error) {
       console.log("Messages error:", error);
@@ -115,12 +90,14 @@ function TicketDetails() {
 
     try {
       setSending(true);
+      setError("");
 
       await api.post(`/messages/${id}`, {
         message: message.trim(),
       });
 
       setMessage("");
+      await fetchMessages();
     } catch (error) {
       setError(
         error.response?.data?.message ||
@@ -131,10 +108,27 @@ function TicketDetails() {
     }
   };
 
-  const changeStatus = async (newStatus) => {
+  const assignTicket = async () => {
     try {
+      setError("");
+
+      await api.patch(`/tickets/${id}/assign`);
+
+      await fetchTicket();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+          "Failed to assign ticket"
+      );
+    }
+  };
+
+  const changeStatus = async () => {
+    try {
+      setError("");
+
       await api.patch(`/tickets/${id}/status`, {
-        status: newStatus,
+        status: "In Progress",
       });
 
       await fetchTicket();
@@ -148,17 +142,18 @@ function TicketDetails() {
 
   const resolveTicket = async () => {
     if (!resolutionNote.trim()) {
-      setError("Resolution note is required");
+      setError("Please enter a resolution note first.");
       return;
     }
 
     try {
+      setError("");
+
       await api.patch(`/tickets/${id}/resolve`, {
         resolutionNote: resolutionNote.trim(),
       });
 
       setResolutionNote("");
-
       await fetchTicket();
     } catch (error) {
       setError(
@@ -169,145 +164,340 @@ function TicketDetails() {
   };
 
   if (loading) {
-    return <p>Loading ticket...</p>;
+    return (
+      <div className="ticket-loading">
+        <div className="loader"></div>
+        <p>Loading ticket...</p>
+      </div>
+    );
   }
 
   if (!ticket) {
-    return <p>Ticket not found.</p>;
+    return (
+      <div className="ticket-not-found">
+        <h2>Ticket not found</h2>
+        <button onClick={() => navigate("/agent")}>
+          Back to Dashboard
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <button onClick={() => navigate("/agent")}>
-        ← Back to Dashboard
-      </button>
+    <div className="ticket-page">
 
-      <h1>{ticket.ticketNumber}</h1>
+      {/* TOP NAV */}
+      <div className="ticket-topbar">
+        <button
+          className="back-btn"
+          onClick={() => navigate("/agent")}
+        >
+          ← Back to Dashboard
+        </button>
 
-      {error && <p>{error}</p>}
-
-      <h2>{ticket.subject}</h2>
-
-      <p>
-        <strong>Customer:</strong>{" "}
-        {ticket.customer?.name}
-      </p>
-
-      <p>
-        <strong>Email:</strong>{" "}
-        {ticket.customer?.email}
-      </p>
-
-      <p>
-        <strong>Category:</strong>{" "}
-        {ticket.category}
-      </p>
-
-      <p>
-        <strong>Priority:</strong>{" "}
-        {ticket.priority}
-      </p>
-
-      <p>
-        <strong>Status:</strong>{" "}
-        {ticket.status}
-      </p>
-
-      <h3>Customer Description</h3>
-
-      <p>{ticket.description}</p>
-
-      <hr />
-
-      <h2>Conversation</h2>
-
-      {messages.length === 0 && (
-        <p>No messages yet.</p>
-      )}
-
-      {messages.map((item) => (
-        <div key={item._id}>
-          <strong>
-            {item.sender?.name || item.senderRole}
-          </strong>
-
-          <p>{item.message}</p>
-
-          <small>
-            {new Date(item.createdAt).toLocaleString()}
-          </small>
-
-          <hr />
+        <div className="brand">
+          <span>Support</span>Flow
         </div>
-      ))}
+      </div>
 
-      {ticket.status !== "Resolved" && (
-        <>
-          <h3>Reply to Customer</h3>
+      <main className="ticket-container">
 
-          <form onSubmit={sendMessage}>
-            <textarea
-              value={message}
-              onChange={(e) =>
-                setMessage(e.target.value)
-              }
-              placeholder="Write your reply..."
-              rows="4"
-            />
+        {/* HEADER */}
+        <div className="ticket-header">
 
-            <br />
+          <div>
+            <p className="ticket-label">
+              SUPPORT TICKET
+            </p>
 
-            <button
-              type="submit"
-              disabled={sending}
-            >
-              {sending
-                ? "Sending..."
-                : "Send Reply"}
-            </button>
-          </form>
+            <h1>{ticket.subject}</h1>
 
-          <hr />
+            <p className="ticket-number">
+              Ticket ID: {ticket.ticketNumber}
+            </p>
+          </div>
 
-          <h3>Update Status</h3>
-
-          <button
-            onClick={() => changeStatus("In Progress")}
+          <span
+            className={`status-badge status-${ticket.status
+              .toLowerCase()
+              .replace(" ", "-")}`}
           >
-            Mark In Progress
-          </button>
+            {ticket.status}
+          </span>
 
-          <hr />
-
-          <h3>Resolve Ticket</h3>
-
-          <textarea
-            value={resolutionNote}
-            onChange={(e) =>
-              setResolutionNote(e.target.value)
-            }
-            placeholder="Enter resolution note..."
-            rows="4"
-          />
-
-          <br />
-
-          <button onClick={resolveTicket}>
-            Resolve Ticket
-          </button>
-        </>
-      )}
-
-      {ticket.status === "Resolved" && (
-        <div>
-          <h3>Resolution</h3>
-
-          <p>{ticket.resolutionNote}</p>
         </div>
-      )}
+
+        {/* ERROR */}
+        {error && (
+          <div className="error-box">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* INFO CARDS */}
+        <div className="info-grid">
+
+          <div className="info-card">
+            <span>Customer</span>
+            <strong>
+              {ticket.customer?.name || "Unknown"}
+            </strong>
+          </div>
+
+          <div className="info-card">
+            <span>Category</span>
+            <strong>{ticket.category}</strong>
+          </div>
+
+          <div className="info-card">
+            <span>Priority</span>
+            <strong>{ticket.priority}</strong>
+          </div>
+
+          <div className="info-card">
+            <span>Email</span>
+            <strong>
+              {ticket.customer?.email || "N/A"}
+            </strong>
+          </div>
+
+        </div>
+
+        {/* DESCRIPTION */}
+        <section className="ticket-card">
+
+          <div className="section-title">
+            <span className="section-icon">📋</span>
+            <h2>Customer Description</h2>
+          </div>
+
+          <p className="description">
+            {ticket.description}
+          </p>
+
+        </section>
+
+        {/* CONVERSATION */}
+        <section className="ticket-card">
+
+          <div className="section-title">
+            <span className="section-icon">💬</span>
+
+            <div>
+              <h2>Conversation</h2>
+              <p>Communication with the customer</p>
+            </div>
+
+            <span className="message-count">
+              {messages.length} Messages
+            </span>
+          </div>
+
+          {messages.length === 0 ? (
+            <div className="empty-messages">
+              <div className="empty-icon">💬</div>
+
+              <h3>No messages yet</h3>
+
+              <p>
+                Start the conversation with the
+                customer.
+              </p>
+            </div>
+          ) : (
+            <div className="messages-list">
+
+              {messages.map((item) => (
+                <div
+                  className="message-item"
+                  key={item._id}
+                >
+                  <div className="message-avatar">
+                    {(item.sender?.name ||
+                      item.senderRole ||
+                      "U")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+
+                  <div className="message-content">
+
+                    <div className="message-top">
+                      <strong>
+                        {item.sender?.name ||
+                          item.senderRole}
+                      </strong>
+
+                      <small>
+                        {new Date(
+                          item.createdAt
+                        ).toLocaleString()}
+                      </small>
+                    </div>
+
+                    <p>{item.message}</p>
+
+                  </div>
+                </div>
+              ))}
+
+            </div>
+          )}
+
+        </section>
+
+        {/* AGENT ACTIONS */}
+        {ticket.status !== "Resolved" && (
+          <div className="actions-grid">
+
+            {/* REPLY */}
+            <section className="action-card reply-card">
+
+              <div className="action-header">
+                <div className="action-icon blue">
+                  💬
+                </div>
+
+                <div>
+                  <h2>Reply to Customer</h2>
+                  <p>
+                    Send a message to the customer
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={sendMessage}>
+
+                <label>Your Reply</label>
+
+                <textarea
+                  value={message}
+                  onChange={(e) =>
+                    setMessage(e.target.value)
+                  }
+                  placeholder="Write your reply to the customer..."
+                  rows="5"
+                />
+
+                <button
+                  className="primary-btn"
+                  type="submit"
+                  disabled={sending}
+                >
+                  {sending
+                    ? "Sending..."
+                    : "Send Reply →"}
+                </button>
+
+              </form>
+
+            </section>
+
+            {/* STATUS */}
+            <section className="action-card">
+
+              <div className="action-header">
+                <div className="action-icon purple">
+                  🔄
+                </div>
+
+                <div>
+                  <h2>Update Status</h2>
+                  <p>
+                    Change the ticket progress
+                  </p>
+                </div>
+              </div>
+
+              {ticket.status === "New" && (
+                <button
+                  className="purple-btn"
+                  onClick={assignTicket}
+                >
+                  Assign Ticket
+                </button>
+              )}
+
+              {ticket.status === "Assigned" && (
+                <button
+                  className="purple-btn"
+                  onClick={changeStatus}
+                >
+                  Mark In Progress
+                </button>
+              )}
+
+              {ticket.status === "In Progress" && (
+                <div className="current-status">
+                  ✓ Ticket is currently In Progress
+                </div>
+              )}
+
+            </section>
+
+            {/* RESOLVE */}
+            <section className="action-card resolve-card">
+
+              <div className="action-header">
+                <div className="action-icon green">
+                  ✓
+                </div>
+
+                <div>
+                  <h2>Resolve Ticket</h2>
+                  <p>
+                    Close this ticket after solving
+                    the issue
+                  </p>
+                </div>
+              </div>
+
+              <label>Resolution Note</label>
+
+              <textarea
+                value={resolutionNote}
+                onChange={(e) =>
+                  setResolutionNote(e.target.value)
+                }
+                placeholder="Explain how the issue was resolved..."
+                rows="4"
+              />
+
+              <button
+                className="resolve-btn"
+                onClick={resolveTicket}
+              >
+                ✓ Resolve Ticket
+              </button>
+
+            </section>
+
+          </div>
+        )}
+
+        {/* RESOLVED */}
+        {ticket.status === "Resolved" && (
+          <section className="resolved-card">
+
+            <div className="resolved-icon">
+              ✓
+            </div>
+
+            <div>
+              <h2>Ticket Resolved</h2>
+
+              <p>
+                {ticket.resolutionNote ||
+                  "This ticket has been successfully resolved."}
+              </p>
+            </div>
+
+          </section>
+        )}
+
+      </main>
     </div>
   );
 }
-
 
 export default TicketDetails;

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import "./CustomerDashboard.css";
 
 function CustomerDashboard() {
   const navigate = useNavigate();
 
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -16,10 +18,16 @@ function CustomerDashboard() {
 
   const fetchTickets = async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const response = await api.get("/tickets/my");
       setTickets(response.data.tickets || []);
     } catch (error) {
-      console.log("Failed to load tickets:", error);
+      setError(
+        error.response?.data?.message ||
+          "Failed to load tickets"
+      );
     } finally {
       setLoading(false);
     }
@@ -28,7 +36,6 @@ function CustomerDashboard() {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
     navigate("/login");
   };
 
@@ -46,381 +53,313 @@ function CustomerDashboard() {
     (ticket) => ticket.status === "Resolved"
   ).length;
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#f5f7fb",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      {/* Navbar */}
-      <nav
-        style={{
-          backgroundColor: "#ffffff",
-          padding: "18px 40px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-        }}
-      >
-        <div>
-          <h2
-            style={{
-              margin: 0,
-              color: "#2563eb",
-            }}
-          >
-            SupportFlow
-          </h2>
+  const getStatusClass = (status) => {
+    if (status === "New") return "customer-status-new";
+    if (status === "In Progress")
+      return "customer-status-progress";
+    if (status === "Resolved")
+      return "customer-status-resolved";
+    if (status === "Assigned")
+      return "customer-status-assigned";
 
-          <small style={{ color: "#64748b" }}>
-            Customer Support Portal
-          </small>
+    return "";
+  };
+
+  return (
+    <div className="customer-dashboard">
+
+      {/* NAVBAR */}
+      <nav className="customer-navbar">
+
+        <div className="customer-brand">
+          <div className="customer-brand-icon">
+            S
+          </div>
+
+          <div>
+            <h2>SupportFlow</h2>
+            <span>Customer Support Portal</span>
+          </div>
         </div>
 
-        <button
-          onClick={logout}
-          style={{
-            backgroundColor: "#ef4444",
-            color: "white",
-            border: "none",
-            padding: "10px 18px",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Logout
-        </button>
+        <div className="customer-nav-right">
+
+          <div className="customer-profile">
+            <div className="customer-avatar">
+              {(user?.name || "U")
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+
+            <div className="customer-profile-info">
+              <strong>
+                {user?.name || "Customer"}
+              </strong>
+
+              <span>Customer</span>
+            </div>
+          </div>
+
+          <button
+            className="customer-logout"
+            onClick={logout}
+          >
+            Logout
+          </button>
+
+        </div>
       </nav>
 
-      {/* Main Content */}
-      <main
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-          padding: "40px 20px",
-        }}
-      >
-        {/* Welcome */}
-        <section
-          style={{
-            backgroundColor: "#2563eb",
-            color: "white",
-            padding: "35px",
-            borderRadius: "16px",
-            marginBottom: "30px",
-          }}
-        >
-          <h1 style={{ marginTop: 0 }}>
-            Welcome, {user?.name || "Customer"} 👋
-          </h1>
+      {/* MAIN */}
+      <main className="customer-container">
 
-          <p
-            style={{
-              marginBottom: 0,
-              opacity: 0.9,
-            }}
-          >
-            Need help? Create a support ticket and our
-            support team will assist you.
-          </p>
-        </section>
+        {/* HERO */}
+        <section className="customer-hero">
 
-        {/* Action Buttons */}
-        <section
-          style={{
-            display: "flex",
-            gap: "15px",
-            flexWrap: "wrap",
-            marginBottom: "30px",
-          }}
-        >
-          <button
-            onClick={() =>
-              navigate("/customer/create-ticket")
-            }
-            style={{
-              backgroundColor: "#2563eb",
-              color: "white",
-              border: "none",
-              padding: "14px 22px",
-              borderRadius: "10px",
-              cursor: "pointer",
-              fontSize: "16px",
-              fontWeight: "bold",
-            }}
-          >
-            + Create Support Ticket
-          </button>
+          <div className="customer-hero-content">
 
-          <button
-            onClick={() => navigate("/customer/tickets")}
-            style={{
-              backgroundColor: "#ffffff",
-              color: "#2563eb",
-              border: "1px solid #2563eb",
-              padding: "14px 22px",
-              borderRadius: "10px",
-              cursor: "pointer",
-              fontSize: "16px",
-              fontWeight: "bold",
-            }}
-          >
-            📋 My Tickets
-          </button>
-        </section>
+            <span className="customer-hero-label">
+              CUSTOMER SUPPORT
+            </span>
 
-        {/* Statistics */}
-        <h2 style={{ color: "#1e293b" }}>
-          Ticket Overview
-        </h2>
+            <h1>
+              Welcome,{" "}
+              {user?.name || "Customer"} 👋
+            </h1>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "20px",
-            marginBottom: "35px",
-          }}
-        >
-          {/* Total */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "25px",
-              borderRadius: "14px",
-              boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Total Tickets
+            <p>
+              Need help? Create a support ticket and
+              our support team will assist you.
             </p>
 
-            <h2 style={{ marginBottom: 0 }}>
-              {totalTickets}
-            </h2>
-          </div>
-
-          {/* New */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "25px",
-              borderRadius: "14px",
-              boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              New
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#f59e0b",
-              }}
-            >
-              {newTickets}
-            </h2>
-          </div>
-
-          {/* In Progress */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "25px",
-              borderRadius: "14px",
-              boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              In Progress
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#2563eb",
-              }}
-            >
-              {inProgressTickets}
-            </h2>
-          </div>
-
-          {/* Resolved */}
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "25px",
-              borderRadius: "14px",
-              boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Resolved
-            </p>
-
-            <h2
-              style={{
-                marginBottom: 0,
-                color: "#16a34a",
-              }}
-            >
-              {resolvedTickets}
-            </h2>
-          </div>
-        </section>
-
-        {/* Recent Tickets */}
-        <section>
-          <h2 style={{ color: "#1e293b" }}>
-            Recent Tickets
-          </h2>
-
-          {loading ? (
-            <p>Loading tickets...</p>
-          ) : tickets.length === 0 ? (
-            <div
-              style={{
-                backgroundColor: "white",
-                padding: "35px",
-                borderRadius: "14px",
-                textAlign: "center",
-              }}
-            >
-              <h3>No tickets yet</h3>
-
-              <p style={{ color: "#64748b" }}>
-                Create your first support ticket to get
-                help from our team.
-              </p>
+            <div className="customer-hero-buttons">
 
               <button
+                className="create-ticket-btn"
                 onClick={() =>
                   navigate("/customer/create-ticket")
                 }
-                style={{
-                  backgroundColor: "#2563eb",
-                  color: "white",
-                  border: "none",
-                  padding: "12px 20px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                }}
               >
-                Create Ticket
+                <span>＋</span>
+                Create Support Ticket
               </button>
+
+              <button
+                className="my-tickets-btn"
+                onClick={() =>
+                  navigate("/customer/tickets")
+                }
+              >
+                📋 My Tickets
+              </button>
+
             </div>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gap: "15px",
-              }}
+
+          </div>
+
+          <div className="customer-hero-graphic">
+            <div className="hero-circle">
+              🎧
+            </div>
+          </div>
+
+        </section>
+
+        {/* OVERVIEW */}
+        <section className="customer-overview">
+
+          <div className="customer-section-title">
+            <div>
+              <h2>Ticket Overview</h2>
+              <p>
+                Track the progress of your support requests
+              </p>
+            </div>
+          </div>
+
+          <div className="customer-stats">
+
+            <div className="customer-stat-card">
+              <div className="customer-stat-icon total">
+                🎫
+              </div>
+
+              <div>
+                <span>Total Tickets</span>
+                <h3>{totalTickets}</h3>
+              </div>
+            </div>
+
+            <div className="customer-stat-card">
+              <div className="customer-stat-icon new">
+                🆕
+              </div>
+
+              <div>
+                <span>New</span>
+                <h3>{newTickets}</h3>
+              </div>
+            </div>
+
+            <div className="customer-stat-card">
+              <div className="customer-stat-icon progress">
+                ⚡
+              </div>
+
+              <div>
+                <span>In Progress</span>
+                <h3>{inProgressTickets}</h3>
+              </div>
+            </div>
+
+            <div className="customer-stat-card">
+              <div className="customer-stat-icon resolved">
+                ✓
+              </div>
+
+              <div>
+                <span>Resolved</span>
+                <h3>{resolvedTickets}</h3>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* RECENT TICKETS */}
+        <section className="recent-tickets">
+
+          <div className="recent-header">
+
+            <div>
+              <h2>Recent Tickets</h2>
+              <p>
+                View and track your latest support requests
+              </p>
+            </div>
+
+            <button
+              className="view-all-btn"
+              onClick={() =>
+                navigate("/customer/tickets")
+              }
             >
-              {tickets.slice(0, 5).map((ticket) => (
-                <div
-                  key={ticket._id}
-                  style={{
-                    backgroundColor: "white",
-                    padding: "22px",
-                    borderRadius: "14px",
-                    boxShadow:
-                      "0 3px 12px rgba(0,0,0,0.06)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "20px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <h3
-                      style={{
-                        marginTop: 0,
-                        marginBottom: "8px",
-                      }}
-                    >
-                      {ticket.ticketNumber}
-                    </h3>
+              View All →
+            </button>
 
-                    <p
-                      style={{
-                        margin: "5px 0",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {ticket.subject}
-                    </p>
+          </div>
 
-                    <p
-                      style={{
-                        margin: "5px 0",
-                        color: "#64748b",
-                      }}
-                    >
-                      {ticket.category}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: "7px 12px",
-                        borderRadius: "20px",
-                        backgroundColor:
-                          ticket.status === "Resolved"
-                            ? "#dcfce7"
-                            : ticket.status === "New"
-                            ? "#fef3c7"
-                            : "#dbeafe",
-                        color:
-                          ticket.status === "Resolved"
-                            ? "#15803d"
-                            : ticket.status === "New"
-                            ? "#b45309"
-                            : "#1d4ed8",
-                        fontSize: "13px",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {ticket.status}
-                    </span>
-
-                    <button
-                      onClick={() =>
-                        navigate(
-                          `/customer/ticket/${ticket._id}`
-                        )
-                      }
-                      style={{
-                        backgroundColor: "#2563eb",
-                        color: "white",
-                        border: "none",
-                        padding: "9px 15px",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      View
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {loading && (
+            <div className="customer-loading">
+              <div className="customer-loader"></div>
+              <p>Loading your tickets...</p>
             </div>
           )}
+
+          {error && (
+            <div className="customer-error">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {!loading &&
+            !error &&
+            tickets.length === 0 && (
+              <div className="customer-empty">
+                <div className="customer-empty-icon">
+                  🎫
+                </div>
+
+                <h3>No tickets yet</h3>
+
+                <p>
+                  Create your first support ticket and
+                  our team will help you.
+                </p>
+
+                <button
+                  onClick={() =>
+                    navigate("/customer/create-ticket")
+                  }
+                >
+                  Create Your First Ticket
+                </button>
+              </div>
+            )}
+
+          {!loading &&
+            !error &&
+            tickets.length > 0 && (
+              <div className="customer-ticket-list">
+
+                {tickets.slice(0, 5).map((ticket) => (
+
+                  <div
+                    className="customer-ticket-row"
+                    key={ticket._id}
+                  >
+
+                    <div className="customer-ticket-info">
+
+                      <span className="customer-ticket-number">
+                        {ticket.ticketNumber}
+                      </span>
+
+                      <h3>{ticket.subject}</h3>
+
+                      <div className="customer-ticket-meta">
+
+                        <span>
+                          {ticket.category}
+                        </span>
+
+                        <span className="meta-divider">
+                          •
+                        </span>
+
+                        <span>
+                          Priority: {ticket.priority}
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                    <div className="customer-ticket-action">
+
+                      <span
+                        className={`customer-status ${getStatusClass(
+                          ticket.status
+                        )}`}
+                      >
+                        {ticket.status}
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/customer/ticket/${ticket._id}`
+                          )
+                        }
+                      >
+                        View
+                        <span>→</span>
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+            )}
+
         </section>
+
       </main>
+
     </div>
   );
 }
